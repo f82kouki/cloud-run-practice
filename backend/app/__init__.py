@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import health, dashboard, students, scouts
+from app.routers import health, dashboard, students, scouts, chat
 
 app = FastAPI(title="Scout Platform API", version="0.1.0")
 
@@ -16,3 +16,4 @@ app.include_router(health.router)
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(students.router, prefix="/api")
 app.include_router(scouts.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")

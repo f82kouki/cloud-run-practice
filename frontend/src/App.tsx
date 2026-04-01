@@ -6,12 +6,13 @@ import type { DashboardStats as Stats, Student, ScoutMessage } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
-type Tab = "dashboard" | "students" | "scouts";
+type Tab = "dashboard" | "students" | "scouts" | "chat";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "dashboard", label: "ダッシュボード" },
   { key: "students", label: "学生検索" },
   { key: "scouts", label: "スカウト管理" },
+  { key: "chat", label: "チャット" },
 ];
 
 export default function App() {
@@ -22,6 +23,9 @@ export default function App() {
   const [scoutFilter, setScoutFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState<{ role: "user" | "bot"; text: string }[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -37,6 +41,27 @@ export default function App() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  const sendChat = async () => {
+    if (!chatInput.trim()) return;
+    const msg = chatInput.trim();
+    setChatMessages((prev) => [...prev, { role: "user", text: msg }]);
+    setChatInput("");
+    setChatLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg }),
+      });
+      const data = await res.json();
+      setChatMessages((prev) => [...prev, { role: "bot", text: data.reply }]);
+    } catch (e) {
+      setChatMessages((prev) => [...prev, { role: "bot", text: `エラー: ${e}` }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
 
   const filteredScouts = scoutFilter
     ? scouts.filter((s) => s.status === scoutFilter)
@@ -150,6 +175,52 @@ export default function App() {
               onFilter={setScoutFilter}
               counts={scoutCounts}
             />
+          </div>
+        )}
+
+        {tab === "chat" && (
+          <div>
+            <h2 className="text-lg font-bold text-gray-800 mb-4">API 動作確認チャット</h2>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 max-w-2xl">
+              <div className="space-y-3 mb-4 min-h-[200px] max-h-[400px] overflow-y-auto">
+                {chatMessages.length === 0 && (
+                  <p className="text-gray-400 text-sm">メッセージを送信してバックエンド API の動作を確認しましょう</p>
+                )}
+                {chatMessages.map((m, i) => (
+                  <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`px-4 py-2 rounded-lg max-w-[80%] text-sm ${
+                      m.role === "user"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-800"
+                    }`}>
+                      {m.text}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-gray-100 text-gray-400 px-4 py-2 rounded-lg text-sm">応答中...</div>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendChat()}
+                  placeholder="メッセージを入力..."
+                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={sendChat}
+                  disabled={chatLoading || !chatInput.trim()}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  送信
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>
