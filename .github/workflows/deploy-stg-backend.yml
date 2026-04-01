@@ -1,0 +1,76 @@
+name: Deploy Staging Backend
+
+on:
+  push:
+    branches: [release]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-stg-backend.yml"
+
+env:
+  PROJECT_ID: aston-486600
+  REGION: asia-northeast1
+  SERVICE_NAME: stg-scout-backend
+  REPOSITORY: scout-platform
+  IMAGE_NAME: backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker asia-northeast1-docker.pkg.dev
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -f backend/Dockerfile.prod \
+            -t asia-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t asia-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest \
+            backend/
+
+      - name: Push Docker image
+        run: |
+          docker push asia-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push asia-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=asia-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }}
+
+      - name: Update Cloud Run Jobs (Staging)
+        run: |
+          JOBS=(
+            stg-scout-email-sender
+            stg-student-data-sync
+            stg-matching-score-calculator
+            stg-weekly-report-generator
+            stg-inactive-student-cleanup
+            stg-scout-reminder-sender
+          )
+          for job in "${JOBS[@]}"; do
+            echo "Updating ${job}..."
+            gcloud run jobs update "${job}" \
+              --image=asia-northeast1-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+              --region=${{ env.REGION }} \
+              --project=${{ env.PROJECT_ID }} || echo "Warning: Failed to update ${job}"
+          done

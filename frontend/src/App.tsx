@@ -4,6 +4,8 @@ import StudentCard from "./components/StudentCard";
 import ScoutList from "./components/ScoutList";
 import type { DashboardStats as Stats, Student, ScoutMessage } from "./types";
 
+const API_BASE = import.meta.env.VITE_API_URL || "";
+
 type Tab = "dashboard" | "students" | "scouts";
 
 const TABS: { key: Tab; label: string }[] = [
@@ -23,9 +25,9 @@ export default function App() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/dashboard").then((r) => r.json()),
-      fetch("/api/students").then((r) => r.json()),
-      fetch("/api/scouts").then((r) => r.json()),
+      fetch(`${API_BASE}/api/dashboard`).then((r) => r.json()),
+      fetch(`${API_BASE}/api/students`).then((r) => r.json()),
+      fetch(`${API_BASE}/api/scouts`).then((r) => r.json()),
     ])
       .then(([d, s, sc]) => {
         setStats(d);
