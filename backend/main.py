@@ -9,8 +9,7 @@ def main():
         run_job(job_type)
     else:
         uvicorn.run(
-            "app:create_app",
-            factory=True,
+            "app:app",
             host="0.0.0.0",
             port=int(os.environ.get("PORT", 8082)),
             reload=False,
