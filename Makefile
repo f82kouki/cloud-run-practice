@@ -26,7 +26,7 @@ shell-frontend:
 
 # ヘルスチェック
 health:
-	curl -s http://localhost:8081/health | python3 -m json.tool
+	curl -s http://localhost:8082/health | python3 -m json.tool
 
 # Cloud Run Jobs 動作確認
 # 例: make job JOB_TYPE=tools-instagram-metric-collector

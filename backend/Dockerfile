@@ -9,6 +9,6 @@ RUN uv pip install --system ".[dev]"
 COPY . .
 
 ENV PYTHONPATH=/app
-EXPOSE 8081
+EXPOSE 8082
 
-CMD ["uvicorn", "app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8081", "--reload"]
+CMD ["uvicorn", "app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8082", "--reload"]
